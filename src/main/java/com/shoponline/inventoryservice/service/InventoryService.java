@@ -1,5 +1,7 @@
 package com.shoponline.inventoryservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shoponline.inventoryservice.entity.Inventory;
 import com.shoponline.inventoryservice.exception.EntityNotExistException;
 import com.shoponline.inventoryservice.repository.InventoryRepository;
@@ -20,13 +22,27 @@ public class InventoryService {
 
     private InventoryRepository inventoryRepository;
 
+    private RabbitMqInventoryPublisher rabbitMqInventoryPublisher;
+
+    private ObjectMapper objectMapper;
+
     public InventoryDto findById(UUID uuid) {
         return inventoryRepository.findById(uuid)
                 .orElseThrow(() -> new EntityNotExistException("Product with id '%s' not found.", uuid)).getDto();
     }
 
+    private String mapObject(Inventory inventory) {
+        try {
+            return objectMapper.writeValueAsString(inventory);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Transactional
     public void create(InventoryDto inventoryDto) {
-        inventoryRepository.save(inventoryDto.fromDto());
+        Inventory inventory = inventoryRepository.save(inventoryDto.fromDto());
+        rabbitMqInventoryPublisher.publishInventoryUpdate(mapObject(inventory));
     }
 
     @Transactional
@@ -36,6 +52,7 @@ public class InventoryService {
         Inventory inventory = inventoryDto.fromDto();
         inventory.setId(uuid);
         inventoryRepository.save(inventory);
+        rabbitMqInventoryPublisher.publishInventoryUpdate(mapObject(inventory));
     }
 
     public Page<InventoryDto> findAll(int page, int size) {

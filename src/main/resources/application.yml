@@ -1,7 +1,7 @@
-spring:
-  application:
-    name: inventory-service
-  profiles:
-    active: dev
-  config:
-    import: optional:configserver:http://configserver:8071
+#spring:
+#  application:
+#    name: inventory-service
+#  profiles:
+#    active: dev
+#  config:
+#    import: optional:configserver:http://configserver:8071
